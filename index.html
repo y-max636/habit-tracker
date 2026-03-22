@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>習慣チェック | CARISENSE</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --text: #e8e8f0;
+    --text-muted: #7070a0;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    color: var(--text);
+  }
+  .header .brand {
+    font-size: .65rem;
+    color: var(--accent);
+    letter-spacing: .15em;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .week-nav button {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .9rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .week-nav button:hover { background: var(--border); }
+  .week-label {
+    font-size: .75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* ─── Summary Cards ─── */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .card .val {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .card .lbl {
+    font-size: .65rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: .04em;
+  }
+  .val.green { color: var(--green); }
+  .val.yellow { color: var(--yellow); }
+  .val.purple { color: var(--accent); }
+
+  /* ─── Table ─── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  th, td {
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    vertical-align: middle;
+  }
+  th {
+    background: var(--surface2);
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    padding: 8px 2px;
+  }
+  th.today-col { color: var(--accent); }
+  td.habit-name {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  td.day-cell {
+    padding: 6px 2px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  td.day-cell:hover .cell-inner { background: var(--border); }
+  td.today-col { background: rgba(108,99,255,.06); }
+  tr:last-child td { border-bottom: none; }
+
+  .cell-inner {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem;
+    transition: background .1s, transform .1s;
+    border: 1.5px solid transparent;
+  }
+  .cell-inner.checked {
+    background: rgba(74,222,128,.15);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .cell-inner.checked:active { transform: scale(.85); }
+  .cell-inner.unchecked {
+    background: var(--surface2);
+    border-color: var(--border);
+    color: transparent;
+  }
+  .cell-inner.future {
+    background: transparent;
+    border-color: rgba(46,46,62,.5);
+    opacity: .4;
+    cursor: default;
+  }
+
+  /* weekly habit (show in last col) */
+  .cell-inner.weekly-checked {
+    background: rgba(251,191,36,.12);
+    border-color: var(--yellow);
+    color: var(--yellow);
+  }
+
+  /* streak badge */
+  .habit-row { position: relative; }
+  .streak-badge {
+    display: inline-block;
+    font-size: .6rem;
+    background: rgba(251,191,36,.15);
+    color: var(--yellow);
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* ─── Row actions ─── */
+  .habit-cell-wrap { display: flex; align-items: center; gap: 0; width: 100%; }
+  .habit-text { flex: 1; }
+  .row-actions {
+    opacity: 0;
+    transition: opacity .15s;
+    display: flex; gap: 2px;
+  }
+  tr:hover .row-actions { opacity: 1; }
+  .row-actions button {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: .75rem;
+    width: 22px; height: 22px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .row-actions button:hover { background: var(--border); color: var(--text); }
+
+  /* ─── Progress bar ─── */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 10px;
+    font-size: .65rem;
+    color: var(--text-muted);
+  }
+  .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 99px;
+    transition: width .4s ease;
+  }
+
+  /* ─── Add habit ─── */
+  .add-section {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .add-section input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: .85rem;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .add-section input:focus { border-color: var(--accent); }
+  .add-section input::placeholder { color: var(--text-muted); }
+  .add-section select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-size: .8rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .add-section button {
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s;
+  }
+  .add-section button:hover { opacity: .85; }
+
+  /* ─── Motivation quote ─── */
+  .quote-card {
+    background: linear-gradient(135deg, rgba(108,99,255,.15), rgba(255,101,132,.1));
+    border: 1px solid rgba(108,99,255,.3);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: .78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    text-align: center;
+  }
+  .quote-card strong { color: var(--text); display: block; margin-bottom: 4px; font-size: .85rem; }
+
+  /* ─── Edit modal ─── */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%; max-width: 360px;
+  }
+  .modal h3 { font-size: .9rem; margin-bottom: 14px; }
+  .modal input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .85rem;
+    outline: none;
+    margin-bottom: 10px;
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .modal select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .85rem;
+    outline: none;
+    margin-bottom: 14px;
+  }
+  .modal-actions { display: flex; gap: 8px; }
+  .modal-actions button {
+    flex: 1; padding: 10px; border-radius: 8px;
+    font-size: .85rem; font-weight: 600; cursor: pointer; border: none;
+  }
+  .btn-save { background: var(--accent); color: white; }
+  .btn-cancel { background: var(--surface2); color: var(--text-muted); }
+  .btn-delete { background: rgba(255,101,132,.15); color: var(--accent2); }
+
+  /* ─── Responsive ─── */
+  @media (min-width: 600px) {
+    body { padding: 24px; max-width: 720px; margin: 0 auto; }
+    .cell-inner { width: 32px; height: 32px; }
+    td.habit-name { font-size: .85rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand">CARISENSE</div>
+    <h1 id="pageTitle">習慣チェック</h1>
+  </div>
+  <div class="week-nav">
+    <button onclick="shiftWeek(-1)">‹</button>
+    <span class="week-label" id="weekLabel">—</span>
+    <button onclick="shiftWeek(1)">›</button>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary">
+  <div class="card">
+    <div class="val green" id="sumRate">—</div>
+    <div class="lbl">今週達成率</div>
+  </div>
+  <div class="card">
+    <div class="val yellow" id="sumStreak">—</div>
+    <div class="lbl">最長連続</div>
+  </div>
+  <div class="card">
+    <div class="val purple" id="sumDone">—</div>
+    <div class="lbl">完了チェック</div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table id="habitTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="progress-row">
+    <span id="progressLabel">0 / 0 完了</span>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span id="progressPct">0%</span>
+  </div>
+</div>
+
+<!-- Add habit -->
+<div class="add-section">
+  <input type="text" id="newHabitInput" placeholder="新しい習慣を追加..." maxlength="30">
+  <select id="newHabitFreq">
+    <option value="daily">毎日</option>
+    <option value="weekly">週1回</option>
+  </select>
+  <button onclick="addHabit()">＋追加</button>
+</div>
+
+<!-- Quote -->
+<div class="quote-card" id="quoteCard">
+  <strong id="quoteText">読み込み中...</strong>
+  <span id="quoteSub"></span>
+</div>
+
+<!-- Edit modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3>習慣を編集</h3>
+    <input type="text" id="editInput" maxlength="30">
+    <select id="editFreq">
+      <option value="daily">毎日</option>
+      <option value="weekly">週1回</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-delete" onclick="deleteHabit()">削除</button>
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────
+const DAY_LABELS = ['月','火','水','木','金','土','日'];
+const STORAGE_HABITS = 'crs_habits';
+const STORAGE_CHECKS = 'crs_checks';
+
+const QUOTES = [
+  { text: '1000万への道は、今日の1チェックから始まる。', sub: '— CARISENSE' },
+  { text: '完璧より継続。仮説検証を繰り返せ。', sub: '— CARISENSE' },
+  { text: '朝を制する者が、キャリセンスを制する。', sub: '— CARISENSE' },
+  { text: '今週も全力で、20代の可能性を拓く。', sub: '— CARISENSE' },
+  { text: '小さな習慣の積み上げが、大きな成功をつくる。', sub: '— CARISENSE' },
+];
+
+// ─── State ───────────────────────────────────────────────────
+let habits = [];
+let checks = {}; // { 'YYYY-MM-DD': { habitId: true } }
+let weekOffset = 0; // 0 = current week
+let editingId = null;
+
+// ─── Init ────────────────────────────────────────────────────
+function init() {
+  loadData();
+  if (habits.length === 0) setDefaultHabits();
+  renderAll();
+  setQuote();
+}
+
+function setDefaultHabits() {
+  habits = [
+    { id: uid(), name: '朝8:30までに起床', freq: 'daily' },
+    { id: uid(), name: 'キャリセンス進捗確認', freq: 'daily' },
+    { id: uid(), name: '1000万達成に向かっているか', freq: 'daily' },
+    { id: uid(), name: '女遊び', freq: 'weekly' },
+  ];
+  saveData();
+}
+
+// ─── Data ────────────────────────────────────────────────────
+function loadData() {
+  try {
+    habits = JSON.parse(localStorage.getItem(STORAGE_HABITS) || '[]');
+    checks = JSON.parse(localStorage.getItem(STORAGE_CHECKS) || '{}');
+  } catch(e) { habits = []; checks = {}; }
+}
+function saveData() {
+  localStorage.setItem(STORAGE_HABITS, JSON.stringify(habits));
+  localStorage.setItem(STORAGE_CHECKS, JSON.stringify(checks));
+}
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
+// ─── Week helpers ─────────────────────────────────────────────
+function getWeekDates(offset = 0) {
+  const today = new Date();
+  // Monday as start
+  const dow = (today.getDay() + 6) % 7; // 0=Mon
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - dow + offset * 7);
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d;
+  });
+}
+function fmt(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function isToday(d) { return fmt(d) === fmt(new Date()); }
+function isFuture(d) { return d > new Date(new Date().toDateString()); }
+
+// ─── Render ───────────────────────────────────────────────────
+function renderAll() {
+  renderHeader();
+  renderTable();
+  renderSummary();
+}
+
+function renderHeader() {
+  const dates = getWeekDates(weekOffset);
+  const from = dates[0], to = dates[6];
+  document.getElementById('weekLabel').textContent =
+    `${from.getMonth()+1}/${from.getDate()} - ${to.getMonth()+1}/${to.getDate()}`;
+  document.getElementById('pageTitle').textContent =
+    weekOffset === 0 ? '習慣チェック' :
+    weekOffset < 0 ? `${Math.abs(weekOffset)}週前` : `${weekOffset}週後`;
+}
+
+function renderTable() {
+  const dates = getWeekDates(weekOffset);
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+
+  // Head
+  head.innerHTML = '';
+  const tr = document.createElement('tr');
+  const th0 = document.createElement('th');
+  th0.style.width = '38%';
+  th0.style.textAlign = 'left';
+  th0.style.paddingLeft = '12px';
+  th0.textContent = '習慣';
+  tr.appendChild(th0);
+  dates.forEach((d, i) => {
+    const th = document.createElement('th');
+    th.textContent = DAY_LABELS[i];
+    if (isToday(d)) th.className = 'today-col';
+    tr.appendChild(th);
+  });
+  head.appendChild(tr);
+
+  // Body
+  body.innerHTML = '';
+  habits.forEach(habit => {
+    const row = document.createElement('tr');
+    row.className = 'habit-row';
+
+    // Name cell
+    const td0 = document.createElement('td');
+    td0.className = 'habit-name';
+    const streak = calcStreak(habit);
+    td0.innerHTML = `
+      <div class="habit-cell-wrap">
+        <div class="habit-text">
+          ${escHtml(habit.name)}
+          ${habit.freq === 'weekly' ? '<span style="font-size:.6rem;color:var(--text-muted);margin-left:4px">週1</span>' : ''}
+          ${streak >= 3 ? `<span class="streak-badge">🔥${streak}</span>` : ''}
+        </div>
+        <div class="row-actions">
+          <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
+        </div>
+      </div>`;
+    row.appendChild(td0);
+
+    // Day cells
+    dates.forEach((d, i) => {
+      const td = document.createElement('td');
+      td.className = 'day-cell' + (isToday(d) ? ' today-col' : '');
+      const dateStr = fmt(d);
+      const checked = checks[dateStr] && checks[dateStr][habit.id];
+      const future = isFuture(d);
+
+      // For weekly habits, only show in Sunday (i===6) as "this week"
+      let inner = '';
+      if (habit.freq === 'weekly') {
+        if (i === 6) { // Sunday slot = weekly indicator
+          const weekChecked = isWeekChecked(habit.id, dates);
+          inner = `<div class="cell-inner ${weekChecked ? 'weekly-checked' : (future ? 'future' : 'unchecked')}"
+            onclick="${!future ? `toggleCheck('${habit.id}','${dateStr}')` : ''}">
+            ${weekChecked ? '✓' : ''}
+          </div>`;
+          td.colSpan = 1;
+          td.setAttribute('colspan','1');
+        } else {
+          td.style.opacity = '.15';
+          inner = `<div class="cell-inner future"></div>`;
+        }
+      } else {
+        inner = `<div class="cell-inner ${checked ? 'checked' : (future ? 'future' : 'unchecked')}"
+          onclick="${!future ? `toggleCheck('${habit.id}','${dateStr}')` : ''}">
+          ${checked ? '✓' : ''}
+        </div>`;
+      }
+      td.innerHTML = inner;
+      row.appendChild(td);
+    });
+
+    body.appendChild(row);
+  });
+}
+
+function isWeekChecked(habitId, dates) {
+  return dates.some(d => checks[fmt(d)] && checks[fmt(d)][habitId]);
+}
+
+function renderSummary() {
+  const dates = getWeekDates(weekOffset);
+  const today = new Date();
+
+  let total = 0, done = 0;
+  habits.forEach(habit => {
+    if (habit.freq === 'daily') {
+      dates.forEach(d => {
+        if (!isFuture(d) || weekOffset < 0) {
+          // Count past days in current or past weeks
+          if (d <= today || weekOffset < 0) {
+            total++;
+            if (checks[fmt(d)] && checks[fmt(d)][habit.id]) done++;
+          }
+        }
+      });
+    } else {
+      // weekly: counts as 1 per week
+      total++;
+      if (isWeekChecked(habit.id, dates)) done++;
+    }
+  });
+
+  const rate = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('sumRate').textContent = rate + '%';
+  document.getElementById('sumDone').textContent = done;
+
+  // Max streak across all daily habits
+  const maxStreak = habits
+    .filter(h => h.freq === 'daily')
+    .reduce((max, h) => Math.max(max, calcStreak(h)), 0);
+  document.getElementById('sumStreak').textContent = maxStreak + '日';
+
+  document.getElementById('progressLabel').textContent = `${done} / ${total} 完了`;
+  document.getElementById('progressFill').style.width = rate + '%';
+  document.getElementById('progressPct').textContent = rate + '%';
+}
+
+function calcStreak(habit) {
+  if (habit.freq === 'weekly') return 0;
+  let streak = 0;
+  const d = new Date();
+  // Start from today or yesterday
+  if (!checks[fmt(d)] || !checks[fmt(d)][habit.id]) {
+    d.setDate(d.getDate() - 1);
+  }
+  while (true) {
+    if (checks[fmt(d)] && checks[fmt(d)][habit.id]) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else break;
+  }
+  return streak;
+}
+
+// ─── Actions ─────────────────────────────────────────────────
+function toggleCheck(habitId, dateStr) {
+  if (!checks[dateStr]) checks[dateStr] = {};
+  checks[dateStr][habitId] = !checks[dateStr][habitId];
+  if (!checks[dateStr][habitId]) delete checks[dateStr][habitId];
+  if (Object.keys(checks[dateStr]).length === 0) delete checks[dateStr];
+  saveData();
+  renderAll();
+}
+
+function addHabit() {
+  const input = document.getElementById('newHabitInput');
+  const freq = document.getElementById('newHabitFreq').value;
+  const name = input.value.trim();
+  if (!name) return;
+  habits.push({ id: uid(), name, freq });
+  saveData();
+  input.value = '';
+  renderAll();
+}
+
+document.getElementById('newHabitInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addHabit();
+});
+
+function openEdit(id) {
+  editingId = id;
+  const h = habits.find(x => x.id === id);
+  document.getElementById('editInput').value = h.name;
+  document.getElementById('editFreq').value = h.freq;
+  document.getElementById('editOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('editOverlay').classList.remove('open');
+  editingId = null;
+}
+function saveEdit() {
+  const name = document.getElementById('editInput').value.trim();
+  const freq = document.getElementById('editFreq').value;
+  if (!name) return;
+  const h = habits.find(x => x.id === editingId);
+  h.name = name; h.freq = freq;
+  saveData(); closeModal(); renderAll();
+}
+function deleteHabit() {
+  if (!confirm('この習慣を削除しますか？')) return;
+  habits = habits.filter(x => x.id !== editingId);
+  // clean checks
+  Object.keys(checks).forEach(d => {
+    delete checks[d][editingId];
+  });
+  saveData(); closeModal(); renderAll();
+}
+
+document.getElementById('editOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('editOverlay')) closeModal();
+});
+
+function shiftWeek(delta) {
+  weekOffset += delta;
+  renderAll();
+}
+
+function setQuote() {
+  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  document.getElementById('quoteText').textContent = q.text;
+  document.getElementById('quoteSub').textContent = q.sub;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Start ───────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
