@@ -175,7 +175,9 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  td.day-cell:hover .cell-inner { background: var(--border); }
+  @media (hover: hover) {
+    td.day-cell:hover .cell-inner { background: var(--border); }
+  }
   td.today-col { background: rgba(108,99,255,.06); }
   tr:last-child td { border-bottom: none; }
 
