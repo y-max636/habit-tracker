@@ -229,13 +229,11 @@
   .habit-cell-wrap { display: flex; align-items: center; gap: 0; width: 100%; }
   .habit-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row-actions {
-    opacity: 1;
+    opacity: 0;
     display: flex; gap: 2px;
+    transition: opacity .15s;
   }
-  @media (hover: hover) {
-    .row-actions { opacity: 0; transition: opacity .15s; }
-    tr:hover .row-actions { opacity: 1; }
-  }
+  tr:hover .row-actions, tr.actions-open .row-actions { opacity: 1; }
   .row-actions button {
     background: none; border: none; cursor: pointer;
     color: var(--text-muted); font-size: .75rem;
@@ -636,6 +634,11 @@ function renderTable() {
           <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
         </div>
       </div>`;
+    td0.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      document.querySelectorAll('tr.actions-open').forEach(r => { if (r !== row) r.classList.remove('actions-open'); });
+      row.classList.toggle('actions-open');
+    });
     row.appendChild(td0);
 
     dates.forEach((d, i) => {
