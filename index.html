@@ -516,7 +516,7 @@ function setSyncBadge(state) {
 // Listen to Firebase (real-time)
 db.ref(ROOT).on('value', snap => {
   const data = snap.val() || {};
-  habits = data.habits ? Object.values(data.habits) : [];
+  habits = data.habits ? Object.values(data.habits).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : [];
   checks = data.checks || {};
 
   if (!initialized) {
@@ -536,7 +536,7 @@ db.ref(ROOT).on('value', snap => {
 function saveHabits(h) {
   setSyncBadge('syncing');
   const obj = {};
-  h.forEach(x => { obj[x.id] = x; });
+  h.forEach((x, i) => { obj[x.id] = { ...x, order: i }; });
   db.ref(ROOT + '/habits').set(obj);
 }
 
