@@ -243,6 +243,30 @@
     display: flex; align-items: center; justify-content: center;
   }
   .row-actions button:hover { background: var(--border); color: var(--text); }
+  .row-actions button.btn-star { color: var(--text-muted); }
+  .row-actions button.btn-star.active { color: #facc15; }
+
+  /* ─── Important habit ─── */
+  tr.important-row td.habit-name {
+    border-left: 3px solid #facc15;
+    background: rgba(250,204,21,.06);
+  }
+  tr.important-row td:not(.habit-name) {
+    background: rgba(250,204,21,.04);
+  }
+  .important-badge {
+    display: inline-block;
+    font-size: .55rem;
+    font-weight: 700;
+    background: rgba(250,204,21,.2);
+    color: #facc15;
+    border: 1px solid rgba(250,204,21,.4);
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: .04em;
+  }
 
   /* ─── Progress bar ─── */
   .progress-row {
@@ -613,7 +637,7 @@ function renderTable() {
   body.innerHTML = '';
   habits.forEach(habit => {
     const row = document.createElement('tr');
-    row.className = 'habit-row';
+    row.className = 'habit-row' + (habit.important ? ' important-row' : '');
 
     const td0 = document.createElement('td');
     td0.className = 'habit-name';
@@ -621,13 +645,15 @@ function renderTable() {
     td0.innerHTML = `
       <div class="habit-cell-wrap">
         <div class="habit-text">
-          ${escHtml(habit.name)}
+          ${habit.important ? '★ ' : ''}${escHtml(habit.name)}
+          ${habit.important ? '<span class="important-badge">重要</span>' : ''}
           ${habit.freq === 'weekly' ? '<span style="font-size:.6rem;color:var(--text-muted);margin-left:4px">週1</span>' : ''}
           ${streak >= 3 ? `<span class="streak-badge">🔥${streak}</span>` : ''}
         </div>
         <div class="row-actions">
           <button onclick="moveHabit('${habit.id}',-1)" title="上へ">↑</button>
           <button onclick="moveHabit('${habit.id}',1)" title="下へ">↓</button>
+          <button onclick="toggleImportant('${habit.id}')" title="重要" class="btn-star${habit.important ? ' active' : ''}">★</button>
           <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
         </div>
       </div>`;
@@ -724,6 +750,11 @@ function toggleCheck(habitId, dateStr) {
   if (!checks[dateStr][habitId]) delete checks[dateStr][habitId];
   if (Object.keys(checks[dateStr]).length === 0) delete checks[dateStr];
   saveChecks();
+}
+
+function toggleImportant(id) {
+  const newHabits = habits.map(h => h.id === id ? { ...h, important: !h.important } : h);
+  saveHabits(newHabits);
 }
 
 function moveHabit(id, dir) {
