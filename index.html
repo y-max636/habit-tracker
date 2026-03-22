@@ -559,7 +559,11 @@ function fmt(d) {
     String(d.getDate()).padStart(2,'0');
 }
 function isToday(d) { return fmt(d) === fmt(new Date()); }
-function isFuture(d) { return d > new Date(new Date().toDateString()); }
+function isFuture(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  return dd > today;
+}
 
 // ─── Render ───────────────────────────────────────────────────
 function renderAll() {
