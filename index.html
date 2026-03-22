@@ -229,11 +229,13 @@
   .habit-cell-wrap { display: flex; align-items: center; gap: 0; width: 100%; }
   .habit-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row-actions {
-    opacity: 0;
-    display: flex; gap: 2px;
-    transition: opacity .15s;
+    display: none; gap: 2px;
   }
-  tr:hover .row-actions, tr.actions-open .row-actions { opacity: 1; }
+  tr.actions-open .row-actions { display: flex; }
+  @media (hover: hover) {
+    .row-actions { display: none; }
+    tr:hover .row-actions { display: flex; }
+  }
   .row-actions button {
     background: none; border: none; cursor: pointer;
     color: var(--text-muted); font-size: .75rem;
