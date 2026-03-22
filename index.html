@@ -243,38 +243,10 @@
     display: flex; align-items: center; justify-content: center;
   }
   .row-actions button:hover { background: var(--border); color: var(--text); }
-  .btn-star {
-    background: none; border: none; cursor: pointer;
-    color: var(--border);
-    font-size: .85rem;
-    width: 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    padding: 0;
-  }
-  .btn-star.active { color: #facc15; }
 
   /* ─── Important habit ─── */
-  tr.important-row td.habit-name {
-    border-left: 3px solid #facc15;
-    background: rgba(250,204,21,.06);
-  }
-  tr.important-row td:not(.habit-name) {
-    background: rgba(250,204,21,.04);
-  }
-  .important-badge {
-    display: inline-block;
-    font-size: .55rem;
-    font-weight: 700;
-    background: rgba(250,204,21,.2);
-    color: #facc15;
-    border: 1px solid rgba(250,204,21,.4);
-    border-radius: 4px;
-    padding: 1px 4px;
-    margin-left: 4px;
-    vertical-align: middle;
-    letter-spacing: .04em;
-  }
+  tr.important-row td { background: rgba(250,204,21,.07); }
+  tr.important-row td.habit-name { border-left: 3px solid #facc15; }
 
   /* ─── Progress bar ─── */
   .progress-row {
@@ -409,8 +381,7 @@
   @media (min-width: 600px) {
     body { padding: 24px; max-width: 720px; margin: 0 auto; }
     .cell-inner { width: 32px; height: 32px; }
-    td.habit-name { font-size: .85rem; padding: 10px 12px; white-space: normal; overflow: visible; }
-    .habit-text { white-space: normal; overflow: visible; text-overflow: clip; }
+    td.habit-name { font-size: .85rem; padding: 10px 12px; }
   }
 </style>
 </head>
@@ -653,16 +624,15 @@ function renderTable() {
     const streak = calcStreak(habit);
     td0.innerHTML = `
       <div class="habit-cell-wrap">
-        <button onclick="toggleImportant('${habit.id}')" title="重要マーク" class="btn-star${habit.important ? ' active' : ''}">★</button>
         <div class="habit-text">
           ${escHtml(habit.name)}
-          ${habit.important ? '<span class="important-badge">重要</span>' : ''}
           ${habit.freq === 'weekly' ? '<span style="font-size:.6rem;color:var(--text-muted);margin-left:4px">週1</span>' : ''}
           ${streak >= 3 ? `<span class="streak-badge">🔥${streak}</span>` : ''}
         </div>
         <div class="row-actions">
           <button onclick="moveHabit('${habit.id}',-1)" title="上へ">↑</button>
           <button onclick="moveHabit('${habit.id}',1)" title="下へ">↓</button>
+          <button onclick="toggleImportant('${habit.id}')" title="${habit.important ? '重要解除' : '重要にする'}" style="color:${habit.important ? '#facc15' : 'var(--text-muted)'}">★</button>
           <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
         </div>
       </div>`;
