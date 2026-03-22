@@ -630,7 +630,7 @@ function renderTable() {
         <div class="row-actions">
           <button onclick="moveHabit('${habit.id}',-1)" title="上へ">↑</button>
           <button onclick="moveHabit('${habit.id}',1)" title="下へ">↓</button>
-          <button onclick="toggleImportant('${habit.id}')" title="${habit.important ? '重要解除' : '重要にする'}" style="color:${habit.important ? '#facc15' : 'var(--text-muted)'}">★</button>
+          <button onclick="toggleImportant('${habit.id}')" title="重要切替">★</button>
           <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
         </div>
       </div>`;
