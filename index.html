@@ -243,8 +243,16 @@
     display: flex; align-items: center; justify-content: center;
   }
   .row-actions button:hover { background: var(--border); color: var(--text); }
-  .row-actions button.btn-star { color: var(--text-muted); }
-  .row-actions button.btn-star.active { color: #facc15; }
+  .btn-star {
+    background: none; border: none; cursor: pointer;
+    color: var(--border);
+    font-size: .85rem;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .btn-star.active { color: #facc15; }
 
   /* ─── Important habit ─── */
   tr.important-row td.habit-name {
@@ -644,8 +652,9 @@ function renderTable() {
     const streak = calcStreak(habit);
     td0.innerHTML = `
       <div class="habit-cell-wrap">
+        <button onclick="toggleImportant('${habit.id}')" title="重要マーク" class="btn-star${habit.important ? ' active' : ''}">★</button>
         <div class="habit-text">
-          ${habit.important ? '★ ' : ''}${escHtml(habit.name)}
+          ${escHtml(habit.name)}
           ${habit.important ? '<span class="important-badge">重要</span>' : ''}
           ${habit.freq === 'weekly' ? '<span style="font-size:.6rem;color:var(--text-muted);margin-left:4px">週1</span>' : ''}
           ${streak >= 3 ? `<span class="streak-badge">🔥${streak}</span>` : ''}
@@ -653,7 +662,6 @@ function renderTable() {
         <div class="row-actions">
           <button onclick="moveHabit('${habit.id}',-1)" title="上へ">↑</button>
           <button onclick="moveHabit('${habit.id}',1)" title="下へ">↓</button>
-          <button onclick="toggleImportant('${habit.id}')" title="重要" class="btn-star${habit.important ? ' active' : ''}">★</button>
           <button onclick="openEdit('${habit.id}')" title="編集">✎</button>
         </div>
       </div>`;
