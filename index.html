@@ -29,6 +29,37 @@
     padding: 16px;
   }
 
+  /* ─── Loading ─── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    flex-direction: column; gap: 12px;
+    transition: opacity .3s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay span { color: var(--text-muted); font-size: .8rem; }
+
+  /* ─── Sync badge ─── */
+  .sync-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: .6rem; color: var(--green);
+    background: rgba(74,222,128,.1);
+    border: 1px solid rgba(74,222,128,.25);
+    border-radius: 6px; padding: 2px 6px;
+    margin-left: 6px; vertical-align: middle;
+  }
+  .sync-badge.syncing { color: var(--yellow); background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.25); }
+
   /* ─── Header ─── */
   .header {
     display: flex;
@@ -172,8 +203,6 @@
     opacity: .4;
     cursor: default;
   }
-
-  /* weekly habit (show in last col) */
   .cell-inner.weekly-checked {
     background: rgba(251,191,36,.12);
     border-color: var(--yellow);
@@ -181,7 +210,6 @@
   }
 
   /* streak badge */
-  .habit-row { position: relative; }
   .streak-badge {
     display: inline-block;
     font-size: .6rem;
@@ -349,10 +377,16 @@
 </head>
 <body>
 
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>データを読み込み中...</span>
+</div>
+
 <div class="header">
   <div>
     <div class="brand">CARISENSE</div>
-    <h1 id="pageTitle">習慣チェック</h1>
+    <h1 id="pageTitle">習慣チェック<span class="sync-badge" id="syncBadge">● 同期中</span></h1>
   </div>
   <div class="week-nav">
     <button onclick="shiftWeek(-1)">‹</button>
@@ -423,12 +457,33 @@
   </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
+// ─── Firebase ────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAsC4ag3jEYOgjQFXQnNjMeoD5FzC6ZRI8",
+  authDomain: "private-habits.firebaseapp.com",
+  databaseURL: "https://private-habits-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "private-habits",
+  storageBucket: "private-habits.firebasestorage.app",
+  messagingSenderId: "376857650362",
+  appId: "1:376857650362:web:74d76e8d9eb27985c84e83"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = 'habitData';
+
 // ─── Constants ───────────────────────────────────────────────
 const DAY_LABELS = ['月','火','水','木','金','土','日'];
-const STORAGE_HABITS = 'crs_habits';
-const STORAGE_CHECKS = 'crs_checks';
-
+const DEFAULT_HABITS = [
+  { id: 'h1', name: '朝8:30までに起床', freq: 'daily' },
+  { id: 'h2', name: 'キャリセンスの成功', freq: 'daily' },
+  { id: 'h3', name: '月間売上1000万達成', freq: 'daily' },
+  { id: 'h4', name: '女遊び', freq: 'weekly' },
+];
 const QUOTES = [
   { text: '1000万への道は、今日の1チェックから始まる。', sub: '— CARISENSE' },
   { text: '完璧より継続。仮説検証を繰り返せ。', sub: '— CARISENSE' },
@@ -439,46 +494,57 @@ const QUOTES = [
 
 // ─── State ───────────────────────────────────────────────────
 let habits = [];
-let checks = {}; // { 'YYYY-MM-DD': { habitId: true } }
-let weekOffset = 0; // 0 = current week
+let checks = {};
+let weekOffset = 0;
 let editingId = null;
+let initialized = false;
 
-// ─── Init ────────────────────────────────────────────────────
-function init() {
-  loadData();
-  if (habits.length === 0) setDefaultHabits();
+// ─── Firebase sync ───────────────────────────────────────────
+function setSyncBadge(state) {
+  const b = document.getElementById('syncBadge');
+  if (state === 'ok') {
+    b.textContent = '● 同期済み'; b.className = 'sync-badge';
+  } else {
+    b.textContent = '● 同期中'; b.className = 'sync-badge syncing';
+  }
+}
+
+// Listen to Firebase (real-time)
+db.ref(ROOT).on('value', snap => {
+  const data = snap.val() || {};
+  habits = data.habits ? Object.values(data.habits) : [];
+  checks = data.checks || {};
+
+  if (!initialized) {
+    if (habits.length === 0) {
+      // First time: write defaults
+      saveHabits(DEFAULT_HABITS);
+      habits = DEFAULT_HABITS;
+    }
+    initialized = true;
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+
+  setSyncBadge('ok');
   renderAll();
-  setQuote();
+});
+
+function saveHabits(h) {
+  setSyncBadge('syncing');
+  const obj = {};
+  h.forEach(x => { obj[x.id] = x; });
+  db.ref(ROOT + '/habits').set(obj);
 }
 
-function setDefaultHabits() {
-  habits = [
-    { id: uid(), name: '朝8:30までに起床', freq: 'daily' },
-    { id: uid(), name: 'キャリセンスの成功', freq: 'daily' },
-    { id: uid(), name: '月間売上1000万達成', freq: 'daily' },
-    { id: uid(), name: '女遊び', freq: 'weekly' },
-  ];
-  saveData();
+function saveChecks() {
+  setSyncBadge('syncing');
+  db.ref(ROOT + '/checks').set(checks);
 }
-
-// ─── Data ────────────────────────────────────────────────────
-function loadData() {
-  try {
-    habits = JSON.parse(localStorage.getItem(STORAGE_HABITS) || '[]');
-    checks = JSON.parse(localStorage.getItem(STORAGE_CHECKS) || '{}');
-  } catch(e) { habits = []; checks = {}; }
-}
-function saveData() {
-  localStorage.setItem(STORAGE_HABITS, JSON.stringify(habits));
-  localStorage.setItem(STORAGE_CHECKS, JSON.stringify(checks));
-}
-function uid() { return Math.random().toString(36).slice(2, 9); }
 
 // ─── Week helpers ─────────────────────────────────────────────
 function getWeekDates(offset = 0) {
   const today = new Date();
-  // Monday as start
-  const dow = (today.getDay() + 6) % 7; // 0=Mon
+  const dow = (today.getDay() + 6) % 7;
   const mon = new Date(today);
   mon.setDate(today.getDate() - dow + offset * 7);
   return Array.from({length: 7}, (_, i) => {
@@ -507,9 +573,10 @@ function renderHeader() {
   const from = dates[0], to = dates[6];
   document.getElementById('weekLabel').textContent =
     `${from.getMonth()+1}/${from.getDate()} - ${to.getMonth()+1}/${to.getDate()}`;
-  document.getElementById('pageTitle').textContent =
-    weekOffset === 0 ? '習慣チェック' :
-    weekOffset < 0 ? `${Math.abs(weekOffset)}週前` : `${weekOffset}週後`;
+  document.getElementById('pageTitle').innerHTML =
+    (weekOffset === 0 ? '習慣チェック' :
+    weekOffset < 0 ? `${Math.abs(weekOffset)}週前` : `${weekOffset}週後`) +
+    `<span class="sync-badge" id="syncBadge">● 同期済み</span>`;
 }
 
 function renderTable() {
@@ -517,7 +584,6 @@ function renderTable() {
   const head = document.getElementById('tableHead');
   const body = document.getElementById('tableBody');
 
-  // Head
   head.innerHTML = '';
   const tr = document.createElement('tr');
   const th0 = document.createElement('th');
@@ -534,13 +600,11 @@ function renderTable() {
   });
   head.appendChild(tr);
 
-  // Body
   body.innerHTML = '';
   habits.forEach(habit => {
     const row = document.createElement('tr');
     row.className = 'habit-row';
 
-    // Name cell
     const td0 = document.createElement('td');
     td0.className = 'habit-name';
     const streak = calcStreak(habit);
@@ -557,7 +621,6 @@ function renderTable() {
       </div>`;
     row.appendChild(td0);
 
-    // Day cells
     dates.forEach((d, i) => {
       const td = document.createElement('td');
       td.className = 'day-cell' + (isToday(d) ? ' today-col' : '');
@@ -565,17 +628,14 @@ function renderTable() {
       const checked = checks[dateStr] && checks[dateStr][habit.id];
       const future = isFuture(d);
 
-      // For weekly habits, only show in Sunday (i===6) as "this week"
       let inner = '';
       if (habit.freq === 'weekly') {
-        if (i === 6) { // Sunday slot = weekly indicator
+        if (i === 6) {
           const weekChecked = isWeekChecked(habit.id, dates);
           inner = `<div class="cell-inner ${weekChecked ? 'weekly-checked' : (future ? 'future' : 'unchecked')}"
             onclick="${!future ? `toggleCheck('${habit.id}','${dateStr}')` : ''}">
             ${weekChecked ? '✓' : ''}
           </div>`;
-          td.colSpan = 1;
-          td.setAttribute('colspan','1');
         } else {
           td.style.opacity = '.15';
           inner = `<div class="cell-inner future"></div>`;
@@ -601,21 +661,17 @@ function isWeekChecked(habitId, dates) {
 function renderSummary() {
   const dates = getWeekDates(weekOffset);
   const today = new Date();
-
   let total = 0, done = 0;
+
   habits.forEach(habit => {
     if (habit.freq === 'daily') {
       dates.forEach(d => {
-        if (!isFuture(d) || weekOffset < 0) {
-          // Count past days in current or past weeks
-          if (d <= today || weekOffset < 0) {
-            total++;
-            if (checks[fmt(d)] && checks[fmt(d)][habit.id]) done++;
-          }
+        if (d <= today || weekOffset < 0) {
+          total++;
+          if (checks[fmt(d)] && checks[fmt(d)][habit.id]) done++;
         }
       });
     } else {
-      // weekly: counts as 1 per week
       total++;
       if (isWeekChecked(habit.id, dates)) done++;
     }
@@ -625,7 +681,6 @@ function renderSummary() {
   document.getElementById('sumRate').textContent = rate + '%';
   document.getElementById('sumDone').textContent = done;
 
-  // Max streak across all daily habits
   const maxStreak = habits
     .filter(h => h.freq === 'daily')
     .reduce((max, h) => Math.max(max, calcStreak(h)), 0);
@@ -640,10 +695,7 @@ function calcStreak(habit) {
   if (habit.freq === 'weekly') return 0;
   let streak = 0;
   const d = new Date();
-  // Start from today or yesterday
-  if (!checks[fmt(d)] || !checks[fmt(d)][habit.id]) {
-    d.setDate(d.getDate() - 1);
-  }
+  if (!checks[fmt(d)] || !checks[fmt(d)][habit.id]) d.setDate(d.getDate() - 1);
   while (true) {
     if (checks[fmt(d)] && checks[fmt(d)][habit.id]) {
       streak++;
@@ -659,8 +711,7 @@ function toggleCheck(habitId, dateStr) {
   checks[dateStr][habitId] = !checks[dateStr][habitId];
   if (!checks[dateStr][habitId]) delete checks[dateStr][habitId];
   if (Object.keys(checks[dateStr]).length === 0) delete checks[dateStr];
-  saveData();
-  renderAll();
+  saveChecks();
 }
 
 function addHabit() {
@@ -668,10 +719,9 @@ function addHabit() {
   const freq = document.getElementById('newHabitFreq').value;
   const name = input.value.trim();
   if (!name) return;
-  habits.push({ id: uid(), name, freq });
-  saveData();
+  const newHabits = [...habits, { id: uid(), name, freq }];
+  saveHabits(newHabits);
   input.value = '';
-  renderAll();
 }
 
 document.getElementById('newHabitInput').addEventListener('keydown', e => {
@@ -693,18 +743,15 @@ function saveEdit() {
   const name = document.getElementById('editInput').value.trim();
   const freq = document.getElementById('editFreq').value;
   if (!name) return;
-  const h = habits.find(x => x.id === editingId);
-  h.name = name; h.freq = freq;
-  saveData(); closeModal(); renderAll();
+  const newHabits = habits.map(x => x.id === editingId ? { ...x, name, freq } : x);
+  saveHabits(newHabits);
+  closeModal();
 }
 function deleteHabit() {
   if (!confirm('この習慣を削除しますか？')) return;
-  habits = habits.filter(x => x.id !== editingId);
-  // clean checks
-  Object.keys(checks).forEach(d => {
-    delete checks[d][editingId];
-  });
-  saveData(); closeModal(); renderAll();
+  const newHabits = habits.filter(x => x.id !== editingId);
+  saveHabits(newHabits);
+  closeModal();
 }
 
 document.getElementById('editOverlay').addEventListener('click', e => {
@@ -716,18 +763,16 @@ function shiftWeek(delta) {
   renderAll();
 }
 
-function setQuote() {
-  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  document.getElementById('quoteText').textContent = q.text;
-  document.getElementById('quoteSub').textContent = q.sub;
-}
+function uid() { return Math.random().toString(36).slice(2, 9); }
 
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─── Start ───────────────────────────────────────────────────
-init();
+// Quote
+const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+document.getElementById('quoteText').textContent = q.text;
+document.getElementById('quoteSub').textContent = q.sub;
 </script>
 </body>
 </html>
